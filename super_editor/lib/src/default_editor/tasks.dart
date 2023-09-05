@@ -32,6 +32,7 @@ class TaskNode extends TextNode {
   /// Whether this task is complete.
   bool get isComplete => _isComplete;
   bool _isComplete;
+
   set isComplete(bool newValue) {
     if (newValue == _isComplete) {
       return;
@@ -295,11 +296,18 @@ ExecutionInstruction enterToInsertNewTask({
     return ExecutionInstruction.continueExecution;
   }
 
-  // The document selection is a caret sitting at the end of a TaskNode.
-  // Insert a new TaskNode below the current TaskNode, and move the caret down.
-  editContext.editor.executeCommand(
-    InsertNewTaskOrSplitExistingTaskCommand(editContext.composer),
-  );
+  if (node.text.text.isEmpty) {
+    // The list item is empty. Convert it to a paragraph.
+    editorOpsLog.finer(
+        "The current node is an empty task item. Converting it to a paragraph instead of inserting block-level newline.");
+    editContext.commonOps.convertToParagraph();
+  } else {
+    // The document selection is a caret sitting at the end of a TaskNode.
+    // Insert a new TaskNode below the current TaskNode, and move the caret down.
+    editContext.editor.executeCommand(
+      InsertNewTaskOrSplitExistingTaskCommand(editContext.composer),
+    );
+  }
 
   return ExecutionInstruction.haltExecution;
 }
@@ -333,9 +341,10 @@ class ConvertParagraphToTaskCommand implements EditorCommand {
 }
 
 class InsertNewTaskOrSplitExistingTaskCommand implements EditorCommand {
-  const InsertNewTaskOrSplitExistingTaskCommand(this._composer);
+  const InsertNewTaskOrSplitExistingTaskCommand(this._composer, {this.newNodeId});
 
   final DocumentComposer _composer;
+  final String? newNodeId;
 
   @override
   void execute(Document document, DocumentEditorTransaction transaction) {
@@ -359,7 +368,7 @@ class InsertNewTaskOrSplitExistingTaskCommand implements EditorCommand {
     // to inserting a new, empty TaskNode after the current TaskNode.
     final selectionTextOffset = (selection.extent.nodePosition as TextNodePosition).offset;
     final newTaskNode = TaskNode(
-      id: DocumentEditor.createNodeId(),
+      id: newNodeId ?? DocumentEditor.createNodeId(),
       text: node.text.copyText(selectionTextOffset),
       isComplete: false,
     );

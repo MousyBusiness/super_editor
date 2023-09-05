@@ -16,6 +16,7 @@ import 'package:super_editor/src/core/document_selection.dart';
 import 'package:super_editor/src/default_editor/list_items.dart';
 import 'package:super_editor/src/default_editor/paragraph.dart';
 import 'package:super_editor/src/default_editor/selection_upstream_downstream.dart';
+import 'package:super_editor/src/default_editor/tasks.dart';
 import 'package:super_editor/src/default_editor/text.dart';
 import 'package:super_editor/src/infrastructure/_logging.dart';
 
@@ -50,9 +51,11 @@ class CommonEditorOperations {
   // Marked as protected for extension methods and subclasses
   @protected
   final DocumentEditor editor;
+
   // Marked as protected for extension methods and subclasses
   @protected
   final DocumentComposer composer;
+
   // Marked as protected for extension methods and subclasses
   @protected
   final DocumentLayoutResolver documentLayoutResolver;
@@ -1727,6 +1730,16 @@ class CommonEditorOperations {
           splitPosition: composer.selection!.extent.nodePosition as TextNodePosition,
           newNodeId: newNodeId,
         ),
+      );
+    } else if (extentNode is TaskNode) {
+      if (extentNode.text.text.isEmpty) {
+        // The list item is empty. Convert it to a paragraph.
+        editorOpsLog.finer(
+            "The current node is an empty task item. Converting it to a paragraph instead of inserting block-level newline.");
+        return convertToParagraph();
+      }
+      editor.executeCommand(
+        InsertNewTaskOrSplitExistingTaskCommand(composer, newNodeId: newNodeId),
       );
     } else if (extentNode is ParagraphNode) {
       // Split the paragraph into two. This includes headers, blockquotes, and
